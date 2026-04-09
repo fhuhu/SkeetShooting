@@ -2,11 +2,13 @@ import cv2
 import sys
 import os
 import time
+import argparse
 from datetime import datetime
 from ultralytics import YOLO
 import sounddevice as sd
 import soundfile as sf
 import threading
+
 
 def ouvrir_webcam(index_camera=0):
     cap = cv2.VideoCapture(index_camera)
@@ -41,18 +43,12 @@ def capturer_image(image, dossier="captures"):
 
 
 def jouer_son(fichier="alert.wav"):
-    """
-    Joue un son sans bloquer le programme (thread séparé)
-    """
-
     def _play():
         try:
             data, samplerate = sf.read(fichier)
             print(f"Lecture de {fichier} (fs={samplerate} Hz)")
-
             sd.play(data, samplerate)
-            sd.wait()  # attendre la fin de la lecture
-
+            sd.wait()
         except Exception as e:
             print(f"Erreur : {e}")
 
@@ -61,7 +57,6 @@ def jouer_son(fichier="alert.wav"):
 
 def encadrer_oiseaux(image, modele, seuil_confiance=0.4):
     resultats = modele(image, verbose=False)
-
     nb_oiseaux = 0
 
     for resultat in resultats:
@@ -89,16 +84,17 @@ def encadrer_oiseaux(image, modele, seuil_confiance=0.4):
     return image, nb_oiseaux
 
 
-def afficher_flux_webcam():
+def afficher_flux_webcam(visible=False):
     cap = ouvrir_webcam(0)
     modele = charger_modele()
     dossier_captures = creer_dossier_captures("captures")
 
-    print("Appuyez sur 'q' pour quitter.")
+    if visible:
+        print("Appuyez sur 'q' pour quitter.")
 
-    alerte_active = False # évite spam sonore
+    alerte_active = False
     dernier_enregistrement = 0
-    delai_capture = 5  # secondes entre deux captures
+    delai_capture = 5
 
     while True:
         ret, frame = cap.read()
@@ -112,7 +108,6 @@ def afficher_flux_webcam():
 
         temps_actuel = time.time()
 
-        # Déclenchement du son
         if nb_oiseaux > 0:
             if not alerte_active:
                 jouer_son("alert.wav")
@@ -121,29 +116,39 @@ def afficher_flux_webcam():
             if temps_actuel - dernier_enregistrement >= delai_capture:
                 capturer_image(frame_annotee, dossier_captures)
                 dernier_enregistrement = temps_actuel
-
         else:
             alerte_active = False
 
-        cv2.putText(
-            frame_annotee,
-            f"Oiseaux detectes : {nb_oiseaux}",
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 255, 0),
-            2
-        )
+        if visible:
+            cv2.putText(
+                frame_annotee,
+                f"Oiseaux detectes : {nb_oiseaux}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 255, 0),
+                2
+            )
 
-        cv2.imshow("Webcam - Detection d'oiseaux", frame_annotee)
+            cv2.imshow("Webcam - Detection d'oiseaux", frame_annotee)
 
-        touche = cv2.waitKey(1) & 0xFF
-        if touche == ord('q'):
-            break
+            touche = cv2.waitKey(1) & 0xFF
+            if touche == ord('q'):
+                break
 
     cap.release()
-    cv2.destroyAllWindows()
+
+    if visible:
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    afficher_flux_webcam()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-v", "--visible",
+        action="store_true",
+        help="Afficher la fenêtre graphique"
+    )
+    args = parser.parse_args()
+
+    afficher_flux_webcam(visible=args.visible)
