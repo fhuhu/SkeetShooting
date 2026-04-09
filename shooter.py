@@ -9,7 +9,38 @@ from datetime import datetime
 from ultralytics import YOLO
 import sounddevice as sd
 import soundfile as sf
+import yaml
 from utils.clavier import ClavierTerminal
+from utils.default_config import DEFAULT_CONFIG
+
+def fusion_dicts(base, override):
+    resultat = dict(base)
+    for cle, valeur in override.items():
+        if cle in resultat and isinstance(resultat[cle], dict) and isinstance(valeur, dict):
+            resultat[cle] = fusion_dicts(resultat[cle], valeur)
+        else:
+            resultat[cle] = valeur
+
+    return resultat
+
+def charger_config(chemin="config.yaml"):
+    config = DEFAULT_CONFIG
+    if os.path.exists(chemin):
+        with open(chemin, "r", encoding="utf-8") as f:
+            user_config = yaml.safe_load(f) or {}
+        config = fusion_dicts(DEFAULT_CONFIG, user_config)
+        print(f"Configuration chargée depuis : {chemin}")
+    else:
+        print(f"Fichier {chemin} introuvable, utilisation de la configuration par défaut.")
+
+    return config
+
+def generer_config_si_absent(chemin="config.yaml"):
+    if not os.path.exists(chemin):
+        import yaml
+        with open(chemin, "w", encoding="utf-8") as f:
+            yaml.dump(DEFAULT_CONFIG, f, sort_keys=False)
+        print(f"Fichier de config créé : {chemin}")
 
 
 def ouvrir_webcam(index_camera=0):
@@ -22,9 +53,9 @@ def ouvrir_webcam(index_camera=0):
     return cap
 
 
-def charger_modele():
+def charger_modele(model):
     try:
-        modele = YOLO("yolov8n.pt")
+        modele = YOLO(model)
     except Exception as e:
         print(f"Erreur lors du chargement du modèle : {e}")
         sys.exit(1)
@@ -34,6 +65,7 @@ def charger_modele():
 
 def creer_dossier_captures(dossier="captures"):
     os.makedirs(dossier, exist_ok=True)
+
     return dossier
 
 
@@ -74,6 +106,7 @@ def encadrer_oiseaux(image, modele, seuil_confiance=0.4):
                 x1, y1, x2, y2 = map(int, boite.xyxy[0].tolist())
 
                 cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
                 cv2.putText(
                     image,
                     f"Oiseau {confiance:.2f}",
@@ -89,9 +122,10 @@ def encadrer_oiseaux(image, modele, seuil_confiance=0.4):
     return image, nb_oiseaux
 
 
-def afficher_flux_webcam(visible=False):
-    cap = ouvrir_webcam(1)
-    modele = charger_modele()
+def afficher_flux_webcam(config, visible=False):
+    cap = ouvrir_webcam(config["camera"]["index"])
+    modele = charger_modele(config["model"]["weights"])
+    nom_fenetre = config["display"]["window_name"]
     dossier_captures = creer_dossier_captures("captures")
     clavier = ClavierTerminal()
 
@@ -158,7 +192,7 @@ def afficher_flux_webcam(visible=False):
                     2
                 )
 
-                cv2.imshow("Webcam - Detection d'oiseaux", frame_annotee)
+                cv2.imshow(config["display"]["window_name"], frame_annotee)
                 fenetre_ouverte = True
 
                 # Nécessaire pour rafraîchir la fenêtre OpenCV
@@ -188,6 +222,13 @@ def afficher_flux_webcam(visible=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "-c", "--config",
+        default="config.yaml",
+        help="Chemin du fichier de configuration YAML"
+    )
+
     parser.add_argument(
         "-v", "--visible",
         action="store_true",
@@ -195,5 +236,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    afficher_flux_webcam(visible=args.visible)
+    generer_config_si_absent(chemin=args.config)
+
+    config = charger_config(args.config)
+
+    # Si -v est fourni, il force l'affichage à True
+    visible_override = True if args.visible else None
+
+    afficher_flux_webcam(config, visible=visible_override)
 
