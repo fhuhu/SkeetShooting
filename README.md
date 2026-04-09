@@ -17,3 +17,11 @@ fhh@natacha ~/tmp/SkeetShooting $ source venv/bin/activate
 (venv) fhh@natacha ~/tmp/SkeetShooting $ pip install -r requirements.txt
 (venv) fhh@natacha ~/tmp/SkeetShooting $ python shooter.py
 ```
+## Tips
+
+Lancement du programme avec limitation de ressources (ex : 8 threads, 24G de RAM)
+```console
+(venv) fhh@natacha ~/tmp/SkeetShooting $ systemd-run --scope -p CPUQuota=800% -p MemoryMax=24G  python shooter.py
+```
+
+
