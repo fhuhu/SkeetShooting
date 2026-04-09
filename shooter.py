@@ -105,11 +105,16 @@ def encadrer_oiseaux(image, modele, seuil_confiance=0.4):
             if nom_classe == "bird" and confiance >= seuil_confiance:
                 x1, y1, x2, y2 = map(int, boite.xyxy[0].tolist())
 
+                # Centre de la boîte englobante
+                x_centre = (x1 + x2) // 2
+                y_centre = (y1 + y2) // 2
+
                 cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.circle(image, (x_centre, y_centre), 4, (0, 0, 255), -1)
 
                 cv2.putText(
                     image,
-                    f"Oiseau {confiance:.2f}",
+                    f"Trust {confiance:.2f} (x={x_centre}, y={y_centre})",
                     (x1, max(y1 - 10, 20)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.6,
@@ -150,6 +155,14 @@ def afficher_flux_webcam(config, visible=False):
                 break
 
             frame_annotee = frame.copy()
+            # Centre de l'image
+            h, w = frame_annotee.shape[:2]
+            centre_x = w // 2
+            centre_y = h // 2
+
+            # Point rouge au centre
+            cv2.circle(frame_annotee, (centre_x, centre_y), 5, (0, 0, 255), -1)
+
             frame_annotee, nb_oiseaux = encadrer_oiseaux(frame_annotee, modele)
 
             temps_actuel = time.time()
