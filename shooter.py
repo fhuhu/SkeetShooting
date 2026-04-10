@@ -169,10 +169,6 @@ def afficher_flux_webcam(config, visible=False):
 
             # Déclenchement du son et captures
             if nb_oiseaux > 0:
-                if not alerte_active:
-                    jouer_son("alert.wav")
-                    alerte_active = True
-
                 if temps_actuel - dernier_enregistrement >= delai_capture:
                     capturer_image(frame_annotee, dossier_captures)
                     dernier_enregistrement = temps_actuel
