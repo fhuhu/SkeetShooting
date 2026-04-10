@@ -209,3 +209,4 @@ __marimo__/
 yolov8n.pt
 # Répertoire des images capturées
 captures
+config.yaml
