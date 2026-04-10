@@ -131,7 +131,7 @@ def afficher_flux_webcam(config, visible=False):
     cap = ouvrir_webcam(config["camera"]["index"])
     modele = charger_modele(config["model"]["weights"])
     nom_fenetre = config["display"]["window_name"]
-    dossier_captures = creer_dossier_captures("captures")
+    dossier_captures = creer_dossier_captures(config["captures"]["directory"])
     clavier = ClavierTerminal()
 
     print("Commandes clavier :")
@@ -141,7 +141,7 @@ def afficher_flux_webcam(config, visible=False):
 
     alerte_active = False
     dernier_enregistrement = 0
-    delai_capture = 5  # secondes entre deux captures
+    delai_capture = config["detection"]["capture_delay_seconds"]  # secondes entre deux captures
     fenetre_ouverte = False
 
     try:
@@ -243,6 +243,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Afficher la fenêtre graphique au démarrage"
     )
+
     args = parser.parse_args()
 
     generer_config_si_absent(chemin=args.config)
